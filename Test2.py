@@ -41,8 +41,8 @@ url = "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
 names = ['sepal-length', 'sepal-width', 'petal-length', 'petal-width', 'class']
 dataset = pandas.read_csv(url, names=names)
 
-#testing git
-#testing branch easy_mode
+# Print dataset
+
 #print dataset.shape
 #print dataset.head(20)
 #print dataset.describe()
@@ -54,7 +54,6 @@ dataset = pandas.read_csv(url, names=names)
 #plt.show()
 
 
-#print
 
 array = dataset.values
 #print array
@@ -86,8 +85,13 @@ knn.fit(X_train, Y_train)
 
 #pickle.dump(knn,open("knn.pkl","wb"))
 
-predictions = knn.predict(X_validation)
-print(accuracy_score(Y_validation, predictions))
+#predictions = knn.predict(X_validation)
+
+pred = knn.predict([[5.9, 3.0, 5.1,1.8],[6.2,2.2,4.5,1.5]])
+
+print pred[1]
+
+#print(accuracy_score(Y_validation, predictions))
 #print(confusion_matrix(Y_validation, predictions))
 #print(classification_report(Y_validation, predictions))
 
