@@ -8,6 +8,8 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 import random
+import pickle
+
 from scipy.spatial import distance
 
 def euc(a,b):
@@ -66,7 +68,8 @@ Y = array[:,4]
 
 validation_size = 0.20
 seed = 7
-X_train, X_validation, Y_train, Y_validation = model_selection.train_test_split(X, Y, test_size=validation_size, random_state=seed)
+X_train, X_validation, Y_train, Y_validation = model_selection.train_test_split(X, Y, test_size=validation_size,
+                                                                                random_state=seed)
 
 #print "X_tarin :"
 #print X_train
@@ -80,6 +83,9 @@ knn = KNeighborsClassifier()
 #knn=Test()
 
 knn.fit(X_train, Y_train)
+
+#pickle.dump(knn,open("knn.pkl","wb"))
+
 predictions = knn.predict(X_validation)
 print(accuracy_score(Y_validation, predictions))
 #print(confusion_matrix(Y_validation, predictions))
