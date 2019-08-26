@@ -1,0 +1,260 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[2]:
+
+
+import numpy as np
+import pandas as pd
+
+
+# In[119]:
+
+
+#train_data = pd.read_csv("train/train.csv",parse_dates=['impression_time'],index_col='impression_time').sort_index()
+train_data = pd.read_csv("train/train.csv")
+item_data = pd.read_csv("train/item_data.csv")
+view_log_data = pd.read_csv("train/view_log.csv")
+
+test_data = pd.read_csv("test.csv")
+sample_submission = pd.read_csv("sample_submission.csv")
+
+
+# In[78]:
+
+
+display(train_data.head())
+#display(item_data.head())
+#display(view_log_data.head())
+
+
+# In[79]:
+
+
+train_data.isnull().sum()
+train_data.dtypes
+
+
+# In[120]:
+
+
+train_data['impression_time'] = pd.to_datetime(train_data['impression_time'])
+train_data['dayofweek'] = train_data['impression_time'].dt.dayofweek
+
+dct = {'old' : 1, 'latest':3, 'intermediate':2}
+
+train_data['os_version'] =  train_data['os_version'].map(dct)
+
+
+# In[81]:
+
+
+display(train_data.head())
+
+
+# In[121]:
+
+
+
+
+test_data['impression_time'] = pd.to_datetime(test_data['impression_time'])
+test_data['dayofweek'] = test_data['impression_time'].dt.dayofweek
+
+dct = {'old' : 1, 'latest':3, 'intermediate':2}
+
+test_data['os_version'] =  test_data['os_version'].map(dct)
+
+display(test_data.head())
+
+display(sample_submission.head())
+
+
+# In[122]:
+
+
+tst_X = test_data.drop(['impression_time','impression_id'],axis=1)
+
+display(tst_X.head())
+                    
+
+
+# In[85]:
+
+
+from collections import defaultdict, Counter
+Counter(train_data['user_id'])
+
+
+# In[123]:
+
+
+import lightgbm as lgb
+
+
+# In[124]:
+
+
+y = train_data['is_click']
+X = train_data.drop(['is_click','impression_time','impression_id'],axis=1)
+
+
+# In[125]:
+
+
+from sklearn.model_selection import train_test_split
+X_train,X_test,y_train,y_test = train_test_split(X,y, test_size=.33, random_state=99)
+
+
+# In[126]:
+
+
+#y_train.head()
+
+x_train = lgb.Dataset(X_train,label=y_train)
+x_valid = lgb.Dataset(X_test, label=y_test)
+
+
+# In[127]:
+
+
+lgb_params = {
+        'random_state':11,
+        'boosting_type': 'gbdt',
+        'objective': 'binary',
+        'metric': 'logloss',
+        'learning_rate': 0.03,
+        'subsample': .4,
+        'colsample_bytree': .8,
+        'reg_alpha': 10,
+        'reg_lambda': .01,
+        'min_split_gain': 0.2,
+        'min_child_weight': 10,
+        'n_estimators': 1200,
+        'silent': 1,
+        'verbose': 1,
+        'max_depth': 4
+    }
+
+
+#model = lgb.LGBMClassifier(**lgb_params)
+
+
+# In[128]:
+
+
+from sklearn.metrics import f1_score
+
+def lgb_f1(y_prd, data):
+    y_act = data.get_label()
+    y_prd = np.round(y_prd)
+    return 'f1', f1_score(y_act, y_prd), True
+
+
+# In[129]:
+
+
+parameters = {
+    'application': 'binary',
+    'objective': 'binary',
+    'metric': 'f1',
+    'is_unbalance': 'true',
+    'boosting': 'gbdt',
+    'num_leaves': 40,
+    'feature_fraction': 0.5,
+    'bagging_fraction': 0.5,
+    'bagging_freq': 20,
+    'learning_rate': 0.05,
+    'verbose': 0
+}
+
+model = lgb.train(parameters,
+                       x_train,
+                       valid_sets=x_valid,
+                       num_boost_round=500,
+                       early_stopping_rounds=100,
+                       feval=lgb_f1)
+
+
+# In[130]:
+
+
+t_pred = model.predict(tst_X, num_iteration=model.best_iteration)
+
+
+# In[90]:
+
+
+model.fit(X_train,y_train)
+
+
+# In[91]:
+
+
+predicts = model.predict(X_test)
+
+
+# In[92]:
+
+
+print(predicts.shape)
+
+
+# In[93]:
+
+
+acc = (predicts ==  y_test).mean()
+print(acc)
+
+
+# In[109]:
+
+
+for i in t_pred:
+    if i ==1 :
+        print (i)
+
+
+# In[63]:
+
+
+from sklearn.metrics import scorer, make_scorer, roc_auc_score, roc_curve
+
+
+# In[76]:
+
+
+scr = roc_auc_score(predicts, y_test)
+print(scr)
+
+
+# In[101]:
+
+
+predicts_test = model.predict(tst_X)
+
+
+# In[139]:
+
+
+col = ['is_click']
+
+prd = pd.DataFrame(t_pred,columns = col)
+
+pdc = pd.concat([test_data['impression_id'],prd],axis=1)
+
+pdc.reset_index(drop=True)
+  
+display(pdc.head(5))
+
+pdc["is_click"] =  pdc["is_click"].apply(lambda x : 1 if (x >=0.43) else 0)
+
+pdc.to_csv("predict_click_263.csv", sep =',', encoding='utf-8',index=False)
+chk  = pd.read_csv("predict_click_263.csv")
+
+
+#chk = chk[:20]
+
+#chk['is_click'] = np.where(chk['is_click'] == 1)
+display(chk.head(5))
+print(chk.is_click.value_counts())
+
